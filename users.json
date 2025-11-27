@@ -1,0 +1,15 @@
+{
+  "admins": [
+    {"username": "Baiano", "password": "@Baiano123"},
+    {"username": "L3ZINN", "password": "@Eduardo83"}
+  ],
+  "users": [
+    {
+      "username": "DestroyerClient",
+      "key": "2kdestroyerlicense",
+      "expiry": "2025-12-27T23:59:59.000Z",
+      "hwid": "",
+      "banned": false
+    }
+  ]
+}
