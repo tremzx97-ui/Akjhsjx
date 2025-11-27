@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Destroyer Client Painel</title>
+<style>
+body { font-family: Arial; background:#121212; color:#fff; display:flex; justify-content:center; align-items:flex-start; padding:20px; }
+.container { max-width:800px; width:100%; }
+h1,h2 { color:#0a6cff; }
+input, select, button { margin:5px 0; padding:8px; width:100%; border:none; border-radius:5px; }
+button { background:#0a6cff; color:#fff; cursor:pointer; }
+table { width:100%; border-collapse: collapse; margin-top:10px; }
+table, th, td { border:1px solid #444; }
+th, td { padding:5px; text-align:left; }
+p { color:#f33; }
+section { margin-bottom:30px; padding:15px; background:#1e1e1e; border-radius:8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- LOGIN -->
+  <section id="userSection">
+    <h1>Login Usuário</h1>
+    <input id="username" placeholder="Usuário" />
+    <input id="key" placeholder="Key" />
+    <input id="hwid" placeholder="HWID" />
+    <button onclick="loginUser()">Entrar</button>
+    <p id="userMsg"></p>
+  </section>
+
+  <!-- ADMIN LOGIN -->
+  <section id="adminSection">
+    <h1>Login Admin</h1>
+    <input id="adminUser" placeholder="Admin" />
+    <input id="adminPass" placeholder="Senha" />
+    <button onclick="loginAdmin()">Entrar como Admin</button>
+    <p id="adminMsg"></p>
+  </section>
+
+  <!-- ADMIN PANEL -->
+  <section id="panelSection" style="display:none;">
+    <h1>Painel Admin</h1>
+
+    <h2>Gerar Key</h2>
+    <input id="newUsername" placeholder="Nome do usuário" />
+    <input id="newKey" placeholder="Nova Key" />
+    <select id="expiryDays">
+      <option value="1">1 dia</option>
+      <option value="3">3 dias</option>
+      <option value="7">7 dias</option>
+      <option value="10">10 dias</option>
+      <option value="20">20 dias</option>
+      <option value="30">30 dias</option>
+    </select>
+    <button onclick="generateKey()">Gerar Key</button>
+
+    <h2>Usuários</h2>
+    <table id="usersTable">
+      <thead>
+        <tr><th>Usuário</th><th>Key</th><th>Expira</th><th>HWID</th><th>Ban</th><th>Ações</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <h2>Logs</h2>
+    <table id="logsTable">
+      <thead>
+        <tr><th>Data</th><th>Ação</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</div>
+
+<script>
+let adminLogged = false;
+
+// ✅ Login de usuário
+async function loginUser(){
+  const username = document.getElementById("username").value;
+  const key = document.getElementById("key").value;
+  const hwid = document.getElementById("hwid").value;
+
+  const res = await fetch("/login", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({username,key,hwid})
+  });
+  const data = await res.json();
+  document.getElementById("userMsg").innerText = data.message;
+}
+
+// ✅ Login admin
+async function loginAdmin(){
+  const username = document.getElementById("adminUser").value;
+  const password = document.getElementById("adminPass").value;
+
+  const res = await fetch("/admin/login", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({username,password})
+  });
+  const data = await res.json();
+  document.getElementById("adminMsg").innerText = data.message;
+  if(data.success){
+    adminLogged = true;
+    document.getElementById("panelSection").style.display="block";
+    loadUsers();
+    loadLogs();
+  }
+}
+
+// ✅ Gerar nova key
+async function generateKey(){
+  if(!adminLogged) return alert("Faça login como admin");
+  const username = document.getElementById("newUsername").value;
+  const newKey = document.getElementById("newKey").value;
+  const expiryDays = document.getElementById("expiryDays").value;
+
+  const res = await fetch("/admin/generate-key",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({username,newKey,expiryDays})
+  });
+  const data = await res.json();
+  alert(data.message);
+  loadUsers();
+  loadLogs();
+}
+
+// ✅ Carregar usuários
+async function loadUsers(){
+  const res = await fetch("/admin/users");
+  const data = await res.json();
+  const tbody = document.querySelector("#usersTable tbody");
+  tbody.innerHTML="";
+  data.users.forEach(u=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${u.username}</td><td>${u.key}</td><td>${new Date(u.expiry).toLocaleString()}</td><td>${u.hwid}</td><td>${u.banned}</td>
+    <td>
+      <button onclick='updateUser("${u.username}","ban")'>Ban</button>
+      <button onclick='updateUser("${u.username}","unban")'>Unban</button>
+      <button onclick='updateUser("${u.username}","resetHWID")'>Reset HWID</button>
+    </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ✅ Atualizar usuário (ban, unban, reset HWID)
+async function updateUser(username,action){
+  const res = await fetch("/admin/update-user",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({username,action})
+  });
+  const data = await res.json();
+  alert(data.message);
+  loadUsers();
+  loadLogs();
+}
+
+// ✅ Carregar logs
+async function loadLogs(){
+  const res = await fetch("/admin/logs");
+  const data = await res.json();
+  const tbody = document.querySelector("#logsTable tbody");
+  tbody.innerHTML="";
+  data.logs.forEach(l=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML=`<td>${new Date(l.time).toLocaleString()}</td><td>${l.action}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+</script>
+</body>
+</html>
